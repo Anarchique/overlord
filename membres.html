@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Membres — VOIDBORN</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <header class="page-hero">
+    <span class="eyebrow">L'équipe</span>
+    <h1>Les Membres</h1>
+    <p>Les visages derrière VOIDBORN. Filtre par rang pour trouver qui est qui.</p>
+  </header>
+
+  <section style="padding-top:20px">
+    <div class="filters">
+      <button class="filter active" data-filter="all">Tous</button>
+      <button class="filter" data-filter="chef">Chefs</button>
+      <button class="filter" data-filter="officier">Officiers</button>
+      <button class="filter" data-filter="membre">Membres</button>
+      <button class="filter" data-filter="recrue">Recrues</button>
+    </div>
+    <div class="grid g4" id="grid"></div>
+  </section>
+</main>
+<script src="main.js"></script>
+<script>
+  // Modifie cette liste : pseudo Minecraft exact (pour la tête), nom affiché, tag Discord, rôle, statut
+  const members = [
+    { mc: 'Dream',       name: 'Void_King',   tag: '@voidking',  role: 'chef',     status: 'on' },
+    { mc: 'Technoblade', name: 'Shadow',      tag: '@shadow',    role: 'officier', status: 'on' },
+    { mc: 'Notch',       name: 'Architect',   tag: '@archi',     role: 'officier', status: 'idle' },
+    { mc: 'jeb_',        name: 'Redstone',    tag: '@redstone',  role: 'officier', status: 'on' },
+    { mc: 'Grian',       name: 'Builder',     tag: '@builder',   role: 'membre',   status: 'off' },
+    { mc: 'Mumbo',       name: 'Engineer',    tag: '@engineer',  role: 'membre',   status: 'on' },
+    { mc: 'Skeppy',      name: 'Diamond',     tag: '@diamond',   role: 'membre',   status: 'idle' },
+    { mc: 'BadBoyHalo',  name: 'Guardian',    tag: '@guardian',  role: 'membre',   status: 'on' },
+    { mc: 'Steve',       name: 'Newbie_01',   tag: '@newbie',    role: 'recrue',   status: 'on' },
+    { mc: 'Alex',        name: 'Rookie',      tag: '@rookie',    role: 'recrue',   status: 'off' },
+  ];
+  const labels = { chef: 'Chef', officier: 'Officier', membre: 'Membre', recrue: 'Recrue' };
+  const esc = s => s.replace(/[&<>"']/g, c => ({ '&': '&', '<': '<', '>': '>', '"': '"', "'": ''' }[c]));
+
+  document.getElementById('grid').innerHTML = members.map(m => `
+    <div class="card member reveal" data-tilt data-role="${m.role}">
+      <div class="avatar">
+        <img src="https://mc-heads.net/avatar/${encodeURIComponent(m.mc)}/128" alt="Tête de ${esc(m.mc)}" loading="lazy">
+        <span class="status ${m.status}"></span>
+      </div>
+      <h3>${esc(m.name)}</h3>
+      <div class="tagd">${esc(m.tag)}</div>
+      <span class="role ${m.role}">${labels[m.role]}</span>
+    </div>`).join('');
+</script>
+</body>
+</html>

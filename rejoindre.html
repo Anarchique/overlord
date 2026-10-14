@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rejoindre — VOIDBORN</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <header class="page-hero">
+    <span class="eyebrow">Recrutement ouvert</span>
+    <h1>Rejoindre</h1>
+    <p>Trois étapes pour intégrer la faction. Simple, rapide, sans prise de tête.</p>
+  </header>
+
+  <section style="padding-top:20px">
+    <div class="grid g3 steps">
+      <div class="card step reveal" data-tilt><span class="num"></span><h3>Rejoins le Discord</h3><p>Clique sur l'invitation et accepte le règlement du serveur.</p></div>
+      <div class="card step reveal" data-tilt><span class="num"></span><h3>Remplis la candidature</h3><p>Présente-toi ci-dessous : le message est copié, colle-le dans #candidatures.</p></div>
+      <div class="card step reveal" data-tilt><span class="num"></span><h3>Passe l'entretien</h3><p>Un officier te contacte en vocal pour un court échange. Bienvenue !</p></div>
+    </div>
+
+    <div class="card invite reveal">
+      <div class="invite-info">
+        <div class="invite-icon">V</div>
+        <div><h3>VOIDBORN — Discord officiel</h3><small><i class="live"></i><span data-discord="online" data-count="340">0</span> en ligne · <span data-discord="members" data-count="1250">0</span> membres</small></div>
+      </div>
+      <a href="https://discord.gg/voidborn" target="_blank" rel="noopener" class="btn btn-discord magnetic">Rejoindre</a>
+    </div>
+  </section>
+
+  <section>
+    <div class="head reveal"><small>Candidature</small><h2 class="split">Postule maintenant</h2><div class="divider"></div></div>
+    <form class="form card reveal" id="applyForm">
+      <div class="row">
+        <div class="field"><label for="discord">Pseudo Discord</label><input id="discord" name="discord" required placeholder="ex : void_king"></div>
+        <div class="field"><label for="mc">Pseudo Minecraft</label><input id="mc" name="mc" required placeholder="ex : Steve"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label for="age">Âge</label><input id="age" name="age" type="number" min="13" max="99" required placeholder="16"></div>
+        <div class="field"><label for="role">Rôle visé</label>
+          <select id="role" name="role"><option>PvP / Combat</option><option>Builder</option><option>Farmer / Éco</option><option>Redstone</option><option>Support / Modération</option></select>
+        </div>
+      </div>
+      <div class="field"><label for="why">Pourquoi nous rejoindre ?</label><textarea id="why" name="why" rows="5" required placeholder="Parle-nous de ton expérience et de tes motivations..."></textarea></div>
+      <button type="submit" class="btn btn-discord magnetic" style="justify-self:start">Copier ma candidature</button>
+    </form>
+  </section>
+</main>
+<script src="main.js"></script>
+</body>
+</html>
