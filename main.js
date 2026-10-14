@@ -1,12 +1,12 @@
 /* ===== main.js — Logique partagée (version complète) ===== */
 const CONFIG = {
-  name: 'VOIDBORN',
-  invite: 'voidborn', // Code d'invitation Discord (discord.gg/xxxx)
-  get inviteUrl() { return `https://discord.gg/${this.invite}`; },
+  name: 'Overlord', // Nom de la faction / serveur
+  invite: 'Overlord', // Code d'invitation Discord (discord.gg/xxxx)
+  get inviteUrl() { return `https://discord.gg/KHTgbP7aTX`; },
   socials: {
-    youtube: 'https://youtube.com/@voidborn',
-    twitter: 'https://x.com/voidborn',
-    tiktok: 'https://tiktok.com/@voidborn',
+    youtube: '',
+    twitter: '',
+    tiktok: '',
   },
 };
 
