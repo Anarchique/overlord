@@ -112,19 +112,30 @@ const counterIO = new IntersectionObserver(entries => {
 }, { threshold: .5 });
 
 /* ===== Stats Discord en direct (API publique des invitations) ===== */
+const CONFIG = {
+  invite: 'KHTgbP7aTX'
+};
+
 async function loadDiscordStats() {
   const total = document.querySelector('[data-discord="members"]');
   const online = document.querySelector('[data-discord="online"]');
+  
   try {
     if (total || online) {
+      // Appel de l'API avec avec le paramètre with_counts=true
       const res = await fetch(`https://discord.com/api/v10/invites/${CONFIG.invite}?with_counts=true`);
       if (!res.ok) throw new Error();
+      
       const d = await res.json();
-      if (total) total.dataset.count = d.approximate_member_count;
-      if (online) online.dataset.count = d.approximate_presence_count;
+      
+      // Injecte le nombre de membres total et en ligne dans le HTML
+      if (total) total.textContent = d.approximate_member_count;
+      if (online) online.textContent = d.approximate_presence_count;
     }
-  } catch { /* fallback : valeurs data-count écrites dans le HTML */ }
-  document.querySelectorAll('[data-count]').forEach(el => counterIO.observe(el));
+  } catch {
+    /* fallback : si l'API échoue */
+    document.querySelectorAll('[data-count]').forEach(el => counterIO.observe(el));
+  }
 }
 
 /* ===== Reveal + titres lettre par lettre ===== */
