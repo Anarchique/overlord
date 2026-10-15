@@ -1,5 +1,7 @@
 /* ===== main.js — Logique partagée (version complète) ===== */
 const CONFIG = {
+  // Logo placeholder : remplacer assets/logo.png par le logo final.
+  logo: 'assets/logo.png',
   name: 'Overlord', // Nom de la faction / serveur
   invite: 'Overlord', // Code d'invitation Discord (discord.gg/xxxx)
   get inviteUrl() { return `https://discord.gg/KHTgbP7aTX`; },
@@ -26,8 +28,11 @@ const isTouch = matchMedia('(hover:none)').matches;
 
 /* ===== Injection du layout commun (nav, footer, fond, toast...) ===== */
 function injectLayout() {
+  if (!document.querySelector('link[rel="icon"]')) {
+    const favicon = document.createElement('link'); favicon.rel = 'icon'; favicon.type = 'image/png'; favicon.href = CONFIG.logo; document.head.appendChild(favicon);
+  }
   document.body.insertAdjacentHTML('afterbegin', `
-    <div class="loader" id="loader"><div><div class="loader-logo">${CONFIG.name}</div><div class="loader-bar"><i></i></div></div></div>
+    <div class="loader" id="loader"><div><div class="loader-logo"><img src="${CONFIG.logo}" alt="">${CONFIG.name}</div><div class="loader-bar"><i></i></div></div></div>
     <div class="curtain" id="curtain"><i></i><i></i><i></i><i></i><i></i></div>
     <div class="progress" id="progress"></div>
     <div class="aurora"><i></i><i></i><i></i></div>
@@ -35,7 +40,7 @@ function injectLayout() {
     <div class="grain"></div>
     <div class="cursor" id="cursor"></div><div class="cursor-dot" id="cursorDot"></div>
     <nav id="nav">
-      <a href="index.html" class="logo">${CONFIG.name}</a>
+      <a href="index.html" class="logo"><img src="${CONFIG.logo}" alt="">${CONFIG.name}</a>
       <ul id="menu">${PAGES.map(([h, l]) => `<li><a href="${h}" class="${h === current ? 'active' : ''}">${l}</a></li>`).join('')}</ul>
       <a href="${CONFIG.inviteUrl}" target="_blank" rel="noopener" class="btn btn-discord nav-cta magnetic">${ICONS.discord}Discord</a>
       <button class="burger" id="burger" aria-label="Menu">☰</button>
@@ -45,7 +50,7 @@ function injectLayout() {
     <footer>
       <div class="f-grid">
         <div>
-          <div class="logo">${CONFIG.name}</div>
+          <div class="logo"><img src="${CONFIG.logo}" alt="">${CONFIG.name}</div>
           <p style="color:var(--muted);font-size:.9rem;margin-top:10px;max-width:340px">Faction Discord Minecraft. Stratégie, entraide et domination — sur tous les serveurs où nous posons le pied.</p>
           <div class="socials">
             <a href="${CONFIG.inviteUrl}" target="_blank" rel="noopener" aria-label="Discord">${ICONS.discord}</a>
