@@ -264,3 +264,12 @@ footer{margin-top:110px;padding:70px 6vw 30px;border-top:1px solid var(--glass-b
 .toast.error{border-color:#ff4d6d}.toast.error .dot{background:#ff4d6d;box-shadow:0 0 12px #ff4d6d}
 
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}.reveal,.split .char{opacity:1;transform:none;filter:none}}
+
+
+/* ===== Identité visuelle : logo ===== */
+.logo{display:inline-flex;align-items:center}
+.logo img{height:36px;width:36px;border-radius:8px;object-fit:cover;vertical-align:middle;margin-right:10px;filter:drop-shadow(0 0 10px rgba(157,77,255,.6))}
+.loader-logo{display:flex;align-items:center;justify-content:center;gap:12px}
+.loader-logo img{height:64px;width:64px;border-radius:14px;object-fit:cover;filter:drop-shadow(0 0 22px rgba(157,77,255,.75))}
+.hero-logo{width:clamp(84px,12vw,132px);height:clamp(84px,12vw,132px);object-fit:cover;border-radius:26px;margin-bottom:24px;filter:drop-shadow(0 0 28px rgba(157,77,255,.65));animation:logoFloat 4s ease-in-out infinite}
+@keyframes logoFloat{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-10px) rotate(2deg)}}
