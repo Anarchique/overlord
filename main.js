@@ -112,28 +112,32 @@ const counterIO = new IntersectionObserver(entries => {
 }, { threshold: .5 });
 
 /* ===== Stats Discord en direct (API publique des invitations) ===== */
-const CONFIG = {
-  invite: 'KHTgbP7aTX'
-};
-
 async function loadDiscordStats() {
   const total = document.querySelector('[data-discord="members"]');
   const online = document.querySelector('[data-discord="online"]');
   
   try {
     if (total || online) {
-      // Appel de l'API avec avec le paramètre with_counts=true
-      const res = await fetch(`https://discord.com/api/v10/invites/${CONFIG.invite}?with_counts=true`);
-      if (!res.ok) throw new Error();
+      // Appel à l'API v10 de Discord avec le paramètre with_counts=true
+      const res = await fetch(`https://discord.com/api/v10/invites/KHTgbP7aTX?with_counts=true`);
+      if (!res.ok) throw new Error("Impossible de contacter l'API Discord");
       
       const d = await res.json();
       
-      // Injecte le nombre de membres total et en ligne dans le HTML
-      if (total) total.textContent = d.approximate_member_count;
-      if (online) online.textContent = d.approximate_presence_count;
+      // Injecte dynamiquement les membres et le nombre de personnes en ligne dans le HTML
+      if (total && d.approximate_member_count !== undefined) {
+        total.textContent = d.approximate_member_count;
+        total.removeAttribute('data-count'); // Empêche l'animation de compteur fictif d'écraser la vraie valeur
+      }
+      
+      if (online && d.approximate_presence_count !== undefined) {
+        online.textContent = d.approximate_presence_count;
+        online.removeAttribute('data-count');
+      }
     }
-  } catch {
-    /* fallback : si l'API échoue */
+  } catch (err) {
+    console.warn("Échec de la récupération des données Discord API, fallback sur les valeurs statiques :", err);
+    // En cas d'erreur ou si l'invitation a expiré, le JS utilise les compteurs par défaut
     document.querySelectorAll('[data-count]').forEach(el => counterIO.observe(el));
   }
 }
