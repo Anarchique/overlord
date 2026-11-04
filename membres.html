@@ -46,35 +46,53 @@
     <div class="grid g4" id="grid"></div>
   </section>
 </main>
-<script src="main.js"></script>
 <script>
-  // Modifie cette liste : pseudo Minecraft exact (pour la tête), nom affiché, tag Discord, rôle, statut
+  // Pseudo Minecraft exact (tête du skin), nom affiché, tag Discord, rôle, statut (on | idle | off)
+  // Défini avant main.js pour que les cartes existent quand main.js initialise filtres / tilt / reveal
   const members = [
-    { mc: 'Anarchique_',       name: 'Anarchique',   tag: '@3i2e',  role: 'Overlord',     status: 'on' },
-    { mc: '', name: '',      tag: '',    role: '', status: 'on' },
-    { mc: '',       name: '',   tag: '',     role: '', status: 'idle' },
-    { mc: '',        name: '',    tag: '',  role: '', status: 'on' },
-    { mc: '',       name: '',     tag: '',   role: '',   status: 'off' },
-    { mc: '',       name: '',    tag: '',  role: '',   status: 'on' },
-    { mc: '',      name: '',     tag: '',   role: '',   status: 'idle' },
-    { mc: '',  name: '',    tag: '',  role: '',   status: 'on' },
-    { mc: '',       name: '',   tag: '',    role: '',   status: 'on' },
-    { mc: '',        name: '',      tag: '',    role: '',   status: 'off' },
+    { mc: 'Anarchique_', name: 'Anarchique', tag: '@3i2e', role: 'Overlord', status: 'on' },
   ];
-  const labels = { Overlord: 'Overlord', 'Gardien de Stratum': 'Gardien de Stratum', 'Pléiade': 'Pléiade', 'Chinois Vénimeux': 'Chinois Vénimeux', 'Chevalier de Death': 'Chevalier de Death', 'Légionnaire Sombre': 'Légionnaire Sombre', 'Initié du Tombeau': 'Initié du Tombeau', recrue: 'Recrue' };
-  const esc = s => s.replace(/[&<>"']/g, c => ({ '&': '&', '<': '<', '>': '>', '"': '"', "'": ''' }[c]));
 
-  document.getElementById('grid').innerHTML = members.map(m => `
-    <div class="card member reveal" data-tilt data-role="${m.role}">
+  const labels = {
+    Overlord: 'Overlord', 'Gardien de Stratum': 'Gardien de Stratum', 'Pléiade': 'Pléiade',
+    'Chinois Vénimeux': 'Chinois Vénimeux', 'Chevalier de Death': 'Chevalier de Death',
+    'Légionnaire Sombre': 'Légionnaire Sombre', 'Initié du Tombeau': 'Initié du Tombeau', recrue: 'Recrue'
+  };
+
+  // Échappement HTML (texte et attributs)
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+
+  // Tête par défaut (Steve) si le pseudo est introuvable
+  const FALLBACK = 'https://mc-heads.net/avatar/MHF_Steve/128';
+
+  const card = m => {
+    const pseudo = encodeURIComponent(m.mc.trim());
+    const role = esc(m.role);
+    return `
+    <div class="card member reveal" data-tilt data-role="${role}">
       <div class="avatar">
-        <img src="https://mc-heads.net/avatar/${encodeURIComponent(m.mc)}/128" alt="Tête de ${esc(m.mc)}" loading="lazy">
-        <span class="status ${m.status}"></span>
+        <img src="https://mc-heads.net/avatar/${pseudo}/128" alt="Tête de ${esc(m.mc)}" loading="lazy"
+             onerror="this.onerror=null;this.src='${FALLBACK}'">
+        <span class="status ${esc(m.status)}"></span>
       </div>
-      <h3>${esc(m.name)}</h3>
+      <h3>${esc(m.name || m.mc)}</h3>
       <div class="tagd">${esc(m.tag)}</div>
-      <span class="role ${m.role}">${labels[m.role]}</span>
-    </div>`).join('');
+      <span class="role ${role}">${esc(labels[m.role] || m.role)}</span>
+    </div>`;
+  };
+
+  addEventListener('DOMContentLoaded', () => {}, { once: true });
+  document.addEventListener('readystatechange', () => {}, { once: true });
 </script>
+<script>
+  // Rendu immédiat de la grille (le DOM de #grid est déjà parsé ici)
+  document.getElementById('grid').innerHTML = members
+    .filter(m => m.mc && m.mc.trim())
+    .map(card).join('');
+</script>
+<script src="main.js"></script>
 <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4bc70e2c01a94c73b74392e4234840661791215815920" integrity="sha512-L0ha0OXavK/8okipN9F8BtP84dg9DUhPERbBXzwI6dgTA55d2+yweo3pn5CSFYs45/r8md2+xvUPtTdvTNRfjA==" data-cf-beacon='{"version":"2024.11.0","token":"8607d2a720d14b038279025b2b5a82e5","spa":2}' crossorigin="anonymous"></script>
 </body>
 </html>
