@@ -62,13 +62,13 @@
   </section>
 </main>
 <script>
-  // Pseudo Minecraft exact (tête du skin), nom affiché, tag Discord, rôle, statut (on | idle | off)
+  // Pseudo Minecraft, UUID Mojang (plus fiable que le pseudo), nom affiché, tag Discord, rôle, statut (on | idle | off)
   // Défini avant main.js pour que les cartes existent quand main.js initialise filtres / tilt / reveal
   const members = [
-    { mc: 'Anarchique_', name: 'Anarchique', tag: '@3i2e',       role: 'Overlord',           status: 'on' },
-    { mc: 'HanTy14',     name: 'HanTy14',    tag: '@hanty1444_', role: 'Gardien de Stratum', status: 'on' },
-    { mc: 'SWHOOK',      name: 'SWHOOK',     tag: '@swidow',     role: 'Pléiade',            status: 'on' },
-    { mc: 'wcodein',     name: 'wcodein',    tag: '@5tgl',       role: 'Chinois Vénimeux',   status: 'on' },
+    { mc: 'Anarchique_', uuid: '78237e3318a74a7c88834670473f483d', name: 'Anarchique', tag: '@3i2e',       role: 'Overlord',           status: 'on' },
+    { mc: 'HanTy14',     uuid: 'da98c434453d420bb812390307e440f2', name: 'HanTy14',    tag: '@hanty1444_', role: 'Gardien de Stratum', status: 'on' },
+    { mc: 'SWHOOK',      uuid: '65c570a7033f42888dcd1a87721f683d', name: 'SWHOOK',     tag: '@swidow',     role: 'Pléiade',            status: 'on' },
+    { mc: 'wcodein',     uuid: '2aba46c8b1d44e38a166de9eda2005f3', name: 'wcodein',    tag: '@5tgl',       role: 'Chinois Vénimeux',   status: 'on' },
   ];
 
   const labels = {
@@ -82,29 +82,37 @@
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
   }[c]));
 
-  // Sources de têtes (pseudo MC -> image), essayées dans l'ordre, puis Steve en dernier recours
-  const HEAD_SOURCES = [
-    p => `https://mc-heads.net/avatar/${p}/128`,
-    p => `https://minotar.net/helm/${p}/128.png`,
-    p => `https://crafatar.com/avatars/${p}?size=128&overlay`,
-  ];
-  const FALLBACK = 'https://mc-heads.net/avatar/MHF_Steve/128';
+  // URLs de tête dans l'ordre : UUID d'abord (skin exact), puis pseudo, puis Steve
+  const FALLBACK = 'https://minotar.net/helm/MHF_Steve/104.png';
+  const headSources = m => {
+    const p = encodeURIComponent(m.mc.trim());
+    const u = (m.uuid || '').replace(/-/g, '').trim();
+    const list = [];
+    if (u) list.push(`https://minotar.net/helm/${u}/104.png`);
+    list.push(`https://minotar.net/helm/${p}/104.png`);
+    if (u) list.push(`https://mc-heads.net/avatar/${u}/104`);
+    list.push(`https://mc-heads.net/avatar/${p}/104`);
+    list.push(FALLBACK);
+    return list;
+  };
 
   // Passe à la source suivante si l'image échoue
   function nextHead(img) {
+    const list = img.dataset.list.split('|');
     const i = +img.dataset.src + 1;
+    if (i >= list.length) { img.onerror = null; return; }
     img.dataset.src = i;
-    img.src = i < HEAD_SOURCES.length ? HEAD_SOURCES[i](img.dataset.mc) : FALLBACK;
-    if (i >= HEAD_SOURCES.length) img.onerror = null;
+    img.src = list[i];
   }
 
   const card = m => {
     const pseudo = encodeURIComponent(m.mc.trim());
     const role = esc(m.role);
+    const list = headSources(m);
     return `
     <div class="card member reveal" data-tilt data-role="${role}">
       <a class="avatar" href="https://namemc.com/profile/${pseudo}" target="_blank" rel="noopener" title="Profil NameMC de ${esc(m.mc)}">
-        <img src="${HEAD_SOURCES[0](pseudo)}" data-mc="${pseudo}" data-src="0"
+        <img src="${list[0]}" data-list="${esc(list.join('|'))}" data-src="0"
              width="104" height="104" alt="Tête de ${esc(m.mc)}" loading="lazy"
              onerror="nextHead(this)">
         <span class="status ${esc(m.status)}"></span>
