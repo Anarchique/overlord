@@ -23,6 +23,21 @@
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="icon" href="assets/logo.png" type="image/png">
 <link rel="stylesheet" href="style.css">
+<style>
+  /* L'avatar est un <a> (inline par défaut) : on force la taille fixe 104x104 */
+  a.avatar{display:block;position:relative;width:104px;height:104px;margin:0 auto;flex:none}
+  .member .avatar img{display:block;width:104px;height:104px;max-width:none;object-fit:cover;image-rendering:pixelated}
+  .member{display:flex;flex-direction:column;align-items:center}
+
+  /* Badges par rang (ciblés via data-role, les noms contiennent des espaces) */
+  .member .role{background:rgba(255,255,255,.06);color:var(--muted);border:1px solid var(--glass-b)}
+  .member[data-role="Overlord"] .role{background:rgba(245,197,66,.15);color:var(--gold);border-color:rgba(245,197,66,.45);box-shadow:0 0 15px rgba(245,197,66,.25)}
+  .member[data-role="Gardien de Stratum"] .role{background:rgba(157,77,255,.18);color:var(--violet-2);border-color:rgba(157,77,255,.5)}
+  .member[data-role="Pléiade"] .role{background:rgba(88,101,242,.15);color:#a5b0ff;border-color:rgba(88,101,242,.4)}
+  .member[data-role="Chinois Vénimeux"] .role{background:rgba(59,165,93,.15);color:#7ee2a0;border-color:rgba(59,165,93,.45)}
+  .member[data-role="Chevalier de Death"] .role{background:rgba(255,77,109,.15);color:#ff8fa3;border-color:rgba(255,77,109,.45)}
+  .member[data-role="Légionnaire Sombre"] .role{background:rgba(124,45,18,.25);color:#f0a37a;border-color:rgba(240,163,122,.4)}
+</style>
 </head>
 <body>
 <main>
@@ -90,13 +105,13 @@
     <div class="card member reveal" data-tilt data-role="${role}">
       <a class="avatar" href="https://namemc.com/profile/${pseudo}" target="_blank" rel="noopener" title="Profil NameMC de ${esc(m.mc)}">
         <img src="${HEAD_SOURCES[0](pseudo)}" data-mc="${pseudo}" data-src="0"
-             alt="Tête de ${esc(m.mc)}" loading="lazy" style="image-rendering:pixelated"
+             width="104" height="104" alt="Tête de ${esc(m.mc)}" loading="lazy"
              onerror="nextHead(this)">
         <span class="status ${esc(m.status)}"></span>
       </a>
       <h3>${esc(m.name || m.mc)}</h3>
       <div class="tagd">${esc(m.tag)}</div>
-      <span class="role ${role}">${esc(labels[m.role] || m.role)}</span>
+      <span class="role">${esc(labels[m.role] || m.role)}</span>
     </div>`;
   };
 
