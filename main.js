@@ -329,8 +329,8 @@ function initForm() {
   const status = document.getElementById('formStatus');
   const warning = document.getElementById('ageWarning');
   const cooldownKey = 'overlord_application_sent_at';
-  const formStartedAt=Date.now();
   const cooldownMs = 10 * 60 * 1000;
+  let sending = false;
   const setStatus = (message, error = false) => {
     if (!status) { showToast(message, error); return; }
     status.textContent = message;
@@ -338,7 +338,6 @@ function initForm() {
     status.classList.toggle('success', !error);
     status.hidden = false;
   };
-  const field = (value, max = 1024) => String(value ?? '').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '').trim().slice(0, max) || '—';
   const setLoading = (loading) => {
     if (!button) return;
     button.disabled = loading;
@@ -348,6 +347,7 @@ function initForm() {
     if (normal) normal.hidden = loading;
     if (busy) busy.hidden = !loading;
   };
+  const value = (name) => String(form.elements[name]?.value ?? '').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '').trim();
   const updateAgeWarning = () => {
     const age = Number(form.elements.age?.value);
     if (warning) warning.hidden = !(age > 0 && age < 16);
@@ -355,15 +355,34 @@ function initForm() {
   form.elements.age?.addEventListener('input', updateAgeWarning);
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
-    if (form.elements.website?.value) return; // honeypot
-    if(Date.now()-formStartedAt<4000){setStatus('Merci de relire votre candidature avant l’envoi.',true);return;}
+    if (sending) return;
+    if (form.elements.website?.value) return; // Honeypot.
     updateAgeWarning();
     if (!form.reportValidity()) return;
-    const webhookUrl = safeHttpUrl(DISCORD_PROXY_URL);
-    if (!webhookUrl) {
-      setStatus('Proxy de candidature indisponible dans la configuration du site.', true);
+
+    const mc = value('mc');
+    if (!/^[A-Za-z0-9_]{3,16}$/.test(mc)) {
+      form.elements.mc.setCustomValidity('Pseudo Minecraft invalide : 3 à 16 caractères, lettres, chiffres ou tiret bas.');
+      form.reportValidity(); form.elements.mc.setCustomValidity('');
       return;
     }
+    const ageRaw = value('age');
+    const age = Number(ageRaw);
+    if (!/^\d+$/.test(ageRaw) || !Number.isInteger(age) || age < 1 || age > 99) {
+      form.elements.age.setCustomValidity('Âge invalide : indique un âge entier de 1 à 99 ans.');
+      form.reportValidity(); form.elements.age.setCustomValidity('');
+      return;
+    }
+    const motivation = value('motivation');
+    if (motivation.length < 50) {
+      form.elements.motivation.setCustomValidity('La motivation doit contenir au moins 50 caractères.');
+      form.reportValidity(); form.elements.motivation.setCustomValidity('');
+      return;
+    }
+    for (const name of ['pvp', 'raid', 'experience', 'availability']) {
+      if (!value(name)) { form.elements[name]?.focus(); setStatus(`Le champ « ${name} » est obligatoire.`, true); return; }
+    }
+
     const now = Date.now();
     try {
       const lastSent = Number(sessionStorage.getItem(cooldownKey) || 0);
@@ -372,56 +391,53 @@ function initForm() {
         setStatus(`Une candidature a déjà été envoyée depuis cet appareil. Réessaie dans environ ${minutes} min.`, true);
         return;
       }
-    } catch { /* Le stockage peut être désactivé ; l’envoi reste possible. */ }
-    const values = Object.fromEntries(new FormData(form));
-    const mc = String(values.mc || '').trim();
-    const mcQuestion = document.querySelector('[name="mc"]');
-    if (mcQuestion?.required && !/^[A-Za-z0-9_]{3,16}$/.test(mc)) {
-      form.elements.mc.setCustomValidity('Pseudo Minecraft invalide : 3 à 16 lettres, chiffres ou tirets bas.');
-      form.reportValidity(); form.elements.mc.setCustomValidity('');
+    } catch { /* Le stockage désactivé ne bloque pas l’envoi. */ }
+
+    const baseUrl = safeHttpUrl(DISCORD_PROXY_URL);
+    if (!baseUrl) {
+      setStatus('Le service de candidature est indisponible : URL du Worker invalide.', true);
       return;
     }
-    const underage = Number(values.age) < 16;
+    // Whitelist explicite : aucun champ technique/personnalisé n’est envoyé au Worker.
     const app = {
-      ...(values.mc ? {mc} : {}), ...(values.age ? {age: field(values.age, 3)} : {}),
-      ...(values.pvp ? {pvp: field(values.pvp, 20)} : {}), ...(values.raid ? {raid: field(values.raid, 20)} : {}),
-      ...(values.experience ? {experience: field(values.experience, 1800)} : {}), ...(values.motivation ? {motivation: field(values.motivation, 1800)} : {}),
-      ...(values.availability ? {availability: field(values.availability, 300)} : {}), ...(values.discord ? {discord: field(values.discord, 80)} : {}),
+      mc, age,
+      pvp: value('pvp').slice(0, 20),
+      raid: value('raid').slice(0, 20),
+      experience: value('experience').slice(0, 1800),
+      motivation: motivation.slice(0, 1800),
+      availability: value('availability').slice(0, 300),
+      ...(value('discord') ? { discord: value('discord').slice(0, 80) } : {}),
     };
-    const embed = {
-      title: `Nouvelle candidature — ${mc}`,
-      color: 0x9b4dff,
-      fields: [
-        { name: 'Pseudo IG', value: app.mc, inline: true },
-        { name: 'Âge', value: `${app.age} ans${underage ? ' ⚠️ (moins de 16 ans — exception à examiner)' : ''}`, inline: true },
-        { name: 'Discord', value: app.discord, inline: true },
-        { name: 'Niveau PVP / Farm', value: `${app.pvp}/10`, inline: true },
-        { name: 'Niveau Pillage / Build', value: `${app.raid}/10`, inline: true },
-        { name: 'Expérience (serveurs déjà joués)', value: app.experience },
-        { name: 'Motivation', value: app.motivation },
-        { name: 'Disponibilités', value: app.availability },
-      ].map((item) => ({ ...item, name: field(item.name, 256), value: field(item.value, 1024) })),
-      thumbnail: { url: `https://mc-heads.net/avatar/${encodeURIComponent(mc)}` },
-      timestamp: new Date().toISOString(),
-      footer: { text: 'Recrutement Overlord · Candidature du site' },
-    };
+
+    sending = true;
     setLoading(true);
     if (status) status.hidden = true;
     try {
-      const payload = { application: app };
-      const response = await fetch(joinApiUrl(webhookUrl, 'candidature'), {
+      const response = await fetch(joinApiUrl(baseUrl, 'candidature'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({ application: app }),
       });
-      if (!response.ok) throw new Error(`Discord/proxy a répondu ${response.status}`);
+      let result = {};
+      try { result = await response.json(); } catch { /* handled with HTTP status below */ }
+      if (!response.ok) {
+        let message = typeof result.error === 'string' ? result.error : `Le service a répondu avec l’erreur ${response.status}.`;
+        if (response.status === 429) {
+          const seconds = Math.max(1, Number(response.headers.get('Retry-After')) || 0);
+          if (seconds && !/\\d+\\s*seconde/i.test(message)) message += ` Réessaie dans ${seconds} seconde${seconds > 1 ? 's' : ''}.`;
+        }
+        throw new Error(message);
+      }
       try { sessionStorage.setItem(cooldownKey, String(Date.now())); } catch { /* no-op */ }
       form.reset(); updateAgeWarning();
       setStatus('Candidature envoyée ! Les officiers Overlord vont l’examiner. Bonne chance, aventurier !');
     } catch (error) {
       console.error('Envoi de candidature impossible.', error);
-      setStatus('Échec de l’envoi. Vérifie le webhook/proxy et ta connexion, puis réessaie.', true);
-    } finally { setLoading(false); }
+      setStatus(error instanceof Error ? error.message : 'Échec de l’envoi. Réessaie plus tard.', true);
+    } finally {
+      sending = false;
+      setLoading(false);
+    }
   });
 }
 
