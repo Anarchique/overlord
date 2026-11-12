@@ -15,7 +15,7 @@ const json = (body, status, headers) => new Response(JSON.stringify(body), { sta
 export default {
   async fetch(request, env) {
     const origin = request.headers.get('Origin') || '';
-    const allowed = env.ALLOWED_ORIGIN || '';
+    const allowed = 'https://overlordmc.online';
     if (!allowed || origin !== allowed) return new Response('Origin not allowed', { status: 403 });
     const headers = corsHeaders(allowed);
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers });
