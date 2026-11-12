@@ -70,3 +70,5 @@ body>main{transition:opacity .16s steps(3)}html.is-leaving body>main{opacity:.2}
 
 /* No flash of unstyled content while the shared navigation is installed. */
 .js-pending body{visibility:hidden}
+
+.member .role[style*=\"--rank-color\"]{border-color:var(--rank-color);box-shadow:0 0 0 1px var(--rank-color),2px 2px #08050d}

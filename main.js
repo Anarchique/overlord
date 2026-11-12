@@ -4,6 +4,8 @@
 const DISCORD_WEBHOOK_URL = '';
 // Alternative Cloudflare Worker : renseigner l’URL du proxy et laisser le webhook direct vide.
 const DISCORD_PROXY_URL = 'https://overlord-candidature.anarchique.workers.dev';
+const API_BASE = 'https://overlord-candidature.anarchique.workers.dev';
+let SITE_CONTENT = null;
 
 const CONFIG = {
   logo: 'assets/logo.png',
@@ -358,9 +360,9 @@ function initForm() {
     if (form.elements.website?.value) return; // honeypot
     updateAgeWarning();
     if (!form.reportValidity()) return;
-    const webhookUrl = DISCORD_PROXY_URL.trim() || DISCORD_WEBHOOK_URL.trim();
+    const webhookUrl = DISCORD_PROXY_URL.trim();
     if (!webhookUrl) {
-      setStatus('Configuration manquante : renseignez DISCORD_WEBHOOK_URL dans main.js ou activez le proxy Cloudflare.', true);
+      setStatus('Proxy de candidature indisponible dans la configuration du site.', true);
       return;
     }
     const now = Date.now();
@@ -374,17 +376,18 @@ function initForm() {
     } catch { /* Le stockage peut être désactivé ; l’envoi reste possible. */ }
     const values = Object.fromEntries(new FormData(form));
     const mc = String(values.mc || '').trim();
-    if (!/^[A-Za-z0-9_]{3,16}$/.test(mc)) {
+    const mcQuestion = document.querySelector('[name="mc"]');
+    if (mcQuestion?.required && !/^[A-Za-z0-9_]{3,16}$/.test(mc)) {
       form.elements.mc.setCustomValidity('Pseudo Minecraft invalide : 3 à 16 lettres, chiffres ou tirets bas.');
       form.reportValidity(); form.elements.mc.setCustomValidity('');
       return;
     }
     const underage = Number(values.age) < 16;
     const app = {
-      mc, age: field(values.age, 3), underage,
-      pvp: field(values.pvp, 20), raid: field(values.raid, 20),
-      experience: field(values.experience, 1800), motivation: field(values.motivation, 1800),
-      availability: field(values.availability, 300), discord: field(values.discord, 80),
+      ...(values.mc ? {mc} : {}), ...(values.age ? {age: field(values.age, 3), underage} : {}),
+      ...(values.pvp ? {pvp: field(values.pvp, 20)} : {}), ...(values.raid ? {raid: field(values.raid, 20)} : {}),
+      ...(values.experience ? {experience: field(values.experience, 1800)} : {}), ...(values.motivation ? {motivation: field(values.motivation, 1800)} : {}),
+      ...(values.availability ? {availability: field(values.availability, 300)} : {}), ...(values.discord ? {discord: field(values.discord, 80)} : {}),
     };
     const embed = {
       title: `Nouvelle candidature — ${mc}`,
@@ -406,9 +409,7 @@ function initForm() {
     setLoading(true);
     if (status) status.hidden = true;
     try {
-      const payload = DISCORD_PROXY_URL.trim()
-        ? { application: app }
-        : { embeds: [embed], allowed_mentions: { parse: [] } };
+      const payload = { application: app };
       const response = await fetch(webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -425,7 +426,7 @@ function initForm() {
   });
 }
 
-const MEMBERS = [
+const FALLBACK_MEMBERS = [
   { mc: 'Anarchique_', uuid: '78237e3318a74a7c88834670473f483d', name: 'Anarchique', tag: '@3i2e', role: 'Overlord', status: 'on' },
   { mc: 'Zewoofr', uuid: 'ccbe35c712f94c9f908d3057019314b2', name: 'Zewoo', tag: '@zewofr', role: 'Overlord', status: 'on' },
   { mc: 'SucreGlace', uuid: '272e2831fb3347fa911724bcfe6b69ae', name: 'SucreGlace', tag: '@fan_2_nai', role: 'Gardien de Stratum', status: 'on' },
@@ -488,16 +489,29 @@ async function renderSkinFace(image, member) {
 function renderMembers() {
   const grid = document.getElementById('grid');
   if (!grid) return;
-  grid.innerHTML = MEMBERS.map((member, index) => {
+  const members = Array.isArray(SITE_CONTENT?.members) ? SITE_CONTENT.members : FALLBACK_MEMBERS;
+  const ranks = Array.isArray(SITE_CONTENT?.ranks) ? SITE_CONTENT.ranks : [];
+  const filters = document.querySelector('.filters');
+  if (filters && ranks.length) {
+    filters.replaceChildren();
+    [['all','Tous'], ...ranks.slice().sort((a,b)=>(a.order||0)-(b.order||0)).map(r=>[r.name,r.name])].forEach(([key,label],i)=>{
+      const button=document.createElement('button');button.type='button';button.className=`filter${i===0?' active':''}`;button.dataset.filter=key;button.setAttribute('aria-pressed',String(i===0));button.textContent=label;filters.append(button);
+    });
+  }
+  grid.innerHTML = members.map((member, index) => {
     const sources = headSources(member);
-    const role = escapeHtml(member.role);
+    const role = escapeHtml(member.role || '');
+    const rank = ranks.find(item=>item.name===member.role);
+    const badgeColor = /^#[0-9a-fA-F]{6}$/.test(rank?.color||'') ? rank.color : '';
+    const avatar = typeof member.avatar==='string' && /^https:\//.test(member.avatar) ? member.avatar : sources[0];
     return `<article class="card member reveal" data-tilt data-role="${role}">
       <a class="avatar" href="https://namemc.com/profile/${encodeURIComponent(member.mc)}" target="_blank" rel="noopener noreferrer" title="Profil NameMC de ${escapeHtml(member.mc)}">
-        <img src="${sources[0]}" data-sources="${escapeHtml(JSON.stringify(sources))}" data-index="0" width="104" height="104" alt="Tête de ${escapeHtml(member.mc)}" referrerpolicy="no-referrer"><span class="status ${escapeHtml(member.status)}" aria-label="En ligne"></span>
-      </a><h3>${escapeHtml(member.name || member.mc)}</h3><div class="tagd">${escapeHtml(member.tag)}</div><span class="role">${role}</span></article>`;
+        <img src="${escapeHtml(avatar)}" data-sources="${escapeHtml(JSON.stringify(sources))}" data-index="0" width="104" height="104" alt="Tête de ${escapeHtml(member.mc)}" referrerpolicy="no-referrer"><span class="status ${escapeHtml(member.status)}" aria-label="En ligne"></span>
+      </a><h3>${escapeHtml(member.name || member.mc)}</h3><div class="tagd">${escapeHtml(member.tag)}</div><span class="role"${badgeColor?` style="--rank-color:${badgeColor}"`:""}>${role}</span></article>`;
   }).join('');
   grid.querySelectorAll('img[data-sources]').forEach((image, index) => {
-    renderSkinFace(image, MEMBERS[index]);
+    if (members[index]?.avatar) image.dataset.customAvatar = 'true';
+    if (!image.dataset.customAvatar) renderSkinFace(image, members[index]);
     image.addEventListener('error', () => {
       const sources = JSON.parse(image.dataset.sources);
       const index = Number(image.dataset.index) + 1;
@@ -507,10 +521,43 @@ function renderMembers() {
   });
 }
 
+async function loadSiteContent() {
+  try {
+    const response = await fetch(`${API_BASE}/api/content`, { headers: { Accept: 'application/json' } });
+    if (!response.ok) return;
+    const result = await response.json();
+    SITE_CONTENT = result.content || null;
+    if (!SITE_CONTENT) return;
+    applySiteSettings(); applyHomeContent(); applyLoreContent(); applyRulesContent(); applyJoinContent();
+  } catch (error) { console.warn('Contenu dynamique indisponible ; contenu local conservé.', error); }
+}
+function setText(selector,value) { const node=document.querySelector(selector); if(node && value!==undefined)node.textContent=String(value); }
+function applySiteSettings() {
+  const settings=SITE_CONTENT?.settings;if(!settings)return;
+  if(typeof settings.name==='string'&&settings.name.trim())document.title=document.title.replace(/Overlord/gi,settings.name);
+  document.querySelectorAll('a[href^="https://discord.gg/"]').forEach(a=>{if(settings.discordInvite){CONFIG.inviteUrl=settings.discordInvite;a.href=settings.discordInvite}});
+  document.querySelectorAll('[data-copy-invite]').forEach(a=>a.dataset.invite=settings.discordInvite||CONFIG.inviteUrl);
+  document.querySelectorAll('.nav-shell .logo,.f-grid .logo').forEach(node=>{const image=node.querySelector('img');node.textContent=settings.name||CONFIG.name;if(image)node.prepend(image)});
+  if(settings.footerText){const copy=document.querySelector('.copy');if(copy)copy.textContent=settings.footerText}
+  if(settings.serverIp){const node=document.querySelector('[data-server-ip]');if(node)node.textContent=settings.serverIp}
+}
+function applyHomeContent() {
+  const data=SITE_CONTENT?.home;if(!data)return;
+  const hero=document.querySelector('.hero');if(!hero)return;
+  if(data.eyebrow)setText('.hero .eyebrow',data.eyebrow);if(data.title)setText('.hero h1',data.title);if(data.taglines&&Array.isArray(data.taglines)){const typing=document.getElementById('typing');if(typing)typing.dataset.lines=JSON.stringify(data.taglines)}
+  if(data.ctaTitle)setText('.cta h2',data.ctaTitle);if(data.ctaText)setText('.cta p',data.ctaText);
+  if(Array.isArray(data.stats))data.stats.slice(0,4).forEach((item,i)=>{const el=document.querySelectorAll('.stat')[i];if(!el)return;const number=el.querySelector('b');const label=el.querySelector('span');if(number){number.dataset.count=String(Number(item.value)||0);number.textContent=number.dataset.count+(item.suffix||'')}if(label)label.textContent=item.label||''});
+  if(Array.isArray(data.features))data.features.slice(0,6).forEach((item,i)=>{const card=document.querySelectorAll('#pourquoi .card')[i];if(!card)return;setNodeText(card,'.icon',item.icon||'✦');setNodeText(card,'h3',item.title||'');setNodeText(card,'p',item.text||'')});
+}
+function setNodeText(root,selector,value){const node=root.querySelector(selector);if(node)node.textContent=String(value??'')}
+function applyLoreContent(){const entries=SITE_CONTENT?.lore;if(!Array.isArray(entries))return;const timeline=document.querySelector('.timeline');if(!timeline)return;timeline.replaceChildren();const fill=document.createElement('div');fill.className='timeline-fill';fill.setAttribute('aria-hidden','true');timeline.append(fill);entries.forEach(item=>{const wrap=document.createElement('div');wrap.className='tl-item reveal';const date=document.createElement('span');date.className='tl-date';date.textContent=item.date||'';const article=document.createElement('article');article.className='card';const h=document.createElement('h2');h.textContent=item.title||'';const p=document.createElement('p');p.textContent=item.text||'';article.append(h,p);wrap.append(date,article);timeline.append(wrap)});}
+function applyRulesContent(){const categories=SITE_CONTENT?.rules;if(!Array.isArray(categories))return;const root=document.querySelector('.rules');if(!root)return;root.replaceChildren();categories.forEach(category=>{const section=document.createElement('section');section.className='rule-category';if(category.name){const title=document.createElement('h2');title.textContent=category.name;section.append(title)};(category.items||[]).forEach(item=>{const card=document.createElement('article');card.className='card rule reveal';const h=document.createElement('h2');const button=document.createElement('button');button.type='button';button.setAttribute('aria-expanded','false');button.textContent=item.title||'';h.append(button);const body=document.createElement('div');body.className='rule-body';body.hidden=true;const p=document.createElement('p');p.textContent=item.text||'';body.append(p);if(item.sanction){const sanction=document.createElement('span');sanction.className='sanction';sanction.textContent=`Sanction : ${item.sanction}`;p.append(document.createElement('br'),sanction)}card.append(h,body);section.append(card)});root.append(section)});initAccordion()}
+function applyJoinContent(){const data=SITE_CONTENT?.join;if(!data)return;if(data.eyebrow)setText('.page-hero .eyebrow',data.eyebrow);if(data.title)setText('.page-hero h1',data.title);if(data.intro)setText('.page-hero p',data.intro);if(data.formTitle)setText('.form-heading h3',data.formTitle);if(data.formDescription)setText('.form-heading p',data.formDescription);if(Array.isArray(data.questions))data.questions.forEach(q=>{const control=document.querySelector(`[name="${CSS.escape(q.name)}"]`);const field=control?.closest('.field');if(field){field.hidden=q.enabled===false;control.required=q.required!==false&&q.enabled!==false;if(q.label)setNodeText(field,'label',q.label)}})}
 function init() {
   document.documentElement.classList.add('js-enabled');
   injectLayout();
   document.documentElement.classList.remove('js-pending');
+  loadSiteContent().then(() => { renderMembers(); initReveal(); initFilters(); initAccordion(); initTyping(); });
   renderMembers();
   initCounters(); initReveal(); initCursor(); initCards(); initMagnetic(); initNav(); initTransitions();
   initCanvas(); initTyping(); initTimeline(); initFilters(); initAccordion(); initForm(); bindCopy();
