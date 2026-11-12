@@ -18,6 +18,7 @@ const currentPage = location.pathname.split('/').pop() || 'index.html';
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const isTouch = matchMedia('(hover: none)').matches;
 const safeHttpUrl=(value,fallback='')=>{try{const u=new URL(String(value),location.href);return ['http:','https:'].includes(u.protocol)?u.href:fallback}catch{return fallback}};
+const joinApiUrl=(base,path)=>`${String(base||'').replace(/\/+$/,'')}/${String(path||'').replace(/^\/+/, '')}`;
 
 function injectLayout() {
   document.body.insertAdjacentHTML('afterbegin', `
@@ -408,7 +409,7 @@ function initForm() {
     if (status) status.hidden = true;
     try {
       const payload = { application: app };
-      const response = await fetch(`${webhookUrl}/candidature`, {
+      const response = await fetch(joinApiUrl(webhookUrl, 'candidature'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
