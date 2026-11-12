@@ -1,8 +1,6 @@
 'use strict';
 
-// Configuration candidature : garder vide tant que le webhook n’est pas configuré.
-const DISCORD_WEBHOOK_URL = '';
-// Alternative Cloudflare Worker : renseigner l’URL du proxy et laisser le webhook direct vide.
+// Le webhook Discord reste exclusivement configuré comme secret du Worker.
 const DISCORD_PROXY_URL = 'https://overlord-candidature.anarchique.workers.dev';
 const API_BASE = 'https://overlord-candidature.anarchique.workers.dev';
 let SITE_CONTENT = null;
@@ -19,9 +17,7 @@ const CONFIG = {
 const currentPage = location.pathname.split('/').pop() || 'index.html';
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const isTouch = matchMedia('(hover: none)').matches;
-const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({
-  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-}[c]));
+const safeHttpUrl=(value,fallback='')=>{try{const u=new URL(String(value),location.href);return ['http:','https:'].includes(u.protocol)?u.href:fallback}catch{return fallback}};
 
 function injectLayout() {
   document.body.insertAdjacentHTML('afterbegin', `
@@ -332,6 +328,7 @@ function initForm() {
   const status = document.getElementById('formStatus');
   const warning = document.getElementById('ageWarning');
   const cooldownKey = 'overlord_application_sent_at';
+  const formStartedAt=Date.now();
   const cooldownMs = 10 * 60 * 1000;
   const setStatus = (message, error = false) => {
     if (!status) { showToast(message, error); return; }
@@ -358,16 +355,17 @@ function initForm() {
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
     if (form.elements.website?.value) return; // honeypot
+    if(Date.now()-formStartedAt<4000){setStatus('Merci de relire votre candidature avant l’envoi.',true);return;}
     updateAgeWarning();
     if (!form.reportValidity()) return;
-    const webhookUrl = DISCORD_PROXY_URL.trim();
+    const webhookUrl = safeHttpUrl(DISCORD_PROXY_URL);
     if (!webhookUrl) {
       setStatus('Proxy de candidature indisponible dans la configuration du site.', true);
       return;
     }
     const now = Date.now();
     try {
-      const lastSent = Number(localStorage.getItem(cooldownKey) || 0);
+      const lastSent = Number(sessionStorage.getItem(cooldownKey) || 0);
       if (lastSent && now - lastSent < cooldownMs) {
         const minutes = Math.ceil((cooldownMs - (now - lastSent)) / 60000);
         setStatus(`Une candidature a déjà été envoyée depuis cet appareil. Réessaie dans environ ${minutes} min.`, true);
@@ -410,13 +408,13 @@ function initForm() {
     if (status) status.hidden = true;
     try {
       const payload = { application: app };
-      const response = await fetch(webhookUrl, {
+      const response = await fetch(`${webhookUrl}/candidature`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
       if (!response.ok) throw new Error(`Discord/proxy a répondu ${response.status}`);
-      try { localStorage.setItem(cooldownKey, String(Date.now())); } catch { /* no-op */ }
+      try { sessionStorage.setItem(cooldownKey, String(Date.now())); } catch { /* no-op */ }
       form.reset(); updateAgeWarning();
       setStatus('Candidature envoyée ! Les officiers Overlord vont l’examiner. Bonne chance, aventurier !');
     } catch (error) {
@@ -498,25 +496,25 @@ function renderMembers() {
       const button=document.createElement('button');button.type='button';button.className=`filter${i===0?' active':''}`;button.dataset.filter=key;button.setAttribute('aria-pressed',String(i===0));button.textContent=label;filters.append(button);
     });
   }
-  grid.innerHTML = members.map((member, index) => {
-    const sources = headSources(member);
-    const role = escapeHtml(member.role || '');
-    const rank = ranks.find(item=>item.name===member.role);
-    const badgeColor = /^#[0-9a-fA-F]{6}$/.test(rank?.color||'') ? rank.color : '';
-    const avatar = typeof member.avatar==='string' && /^https:\//.test(member.avatar) ? member.avatar : sources[0];
-    return `<article class="card member reveal" data-tilt data-role="${role}">
-      <a class="avatar" href="https://namemc.com/profile/${encodeURIComponent(member.mc)}" target="_blank" rel="noopener noreferrer" title="Profil NameMC de ${escapeHtml(member.mc)}">
-        <img src="${escapeHtml(avatar)}" data-sources="${escapeHtml(JSON.stringify(sources))}" data-index="0" width="104" height="104" alt="Tête de ${escapeHtml(member.mc)}" referrerpolicy="no-referrer"><span class="status ${escapeHtml(member.status)}" aria-label="En ligne"></span>
-      </a><h3>${escapeHtml(member.name || member.mc)}</h3><div class="tagd">${escapeHtml(member.tag)}</div><span class="role"${badgeColor?` style="--rank-color:${badgeColor}"`:""}>${role}</span></article>`;
-  }).join('');
+  grid.replaceChildren();
+  members.forEach((member,index)=>{
+    const safeName=String(member.mc||'').slice(0,16),sources=headSources({...member,mc:safeName});
+    const article=document.createElement('article');article.className='card member reveal';article.dataset.tilt='';article.dataset.role=String(member.role||'').slice(0,80);
+    const link=document.createElement('a');link.className='avatar';link.href=`https://namemc.com/profile/${encodeURIComponent(safeName)}`;link.target='_blank';link.rel='noopener noreferrer';link.title=`Profil NameMC de ${safeName}`;
+    const image=document.createElement('img');image.src=safeHttpUrl(member.avatar,sources[0]);image.dataset.sources=JSON.stringify(sources.map(u=>safeHttpUrl(u)).filter(Boolean));image.dataset.index='0';image.width=image.height=104;image.alt=`Tête de ${safeName}`;image.referrerPolicy='no-referrer';link.append(image);
+    const indicator=document.createElement('span');indicator.className=`status ${member.status==='on'?'on':'off'}`;indicator.setAttribute('aria-label',member.status==='on'?'En ligne':'Hors ligne');link.append(indicator);
+    const heading=document.createElement('h3');heading.textContent=String(member.name||safeName).slice(0,100);const tag=document.createElement('div');tag.className='tagd';tag.textContent=String(member.tag||'').slice(0,100);
+    const badge=document.createElement('span');badge.className='role';badge.textContent=String(member.role||'').slice(0,80);const rank=ranks.find(item=>item.name===member.role);if(/^#[0-9a-fA-F]{6}$/.test(rank?.color||''))badge.style.setProperty('--rank-color',rank.color);
+    article.append(link,heading,tag,badge);grid.append(article);
+  });
   grid.querySelectorAll('img[data-sources]').forEach((image, index) => {
     if (members[index]?.avatar) image.dataset.customAvatar = 'true';
     if (!image.dataset.customAvatar) renderSkinFace(image, members[index]);
     image.addEventListener('error', () => {
-      const sources = JSON.parse(image.dataset.sources);
+      const sources = JSON.parse(image.dataset.sources).filter(u=>safeHttpUrl(u));
       const index = Number(image.dataset.index) + 1;
       if (index >= sources.length) { image.onerror = null; return; }
-      image.dataset.index = String(index); image.src = sources[index];
+      image.dataset.index = String(index); image.src = safeHttpUrl(sources[index]);
     });
   });
 }
@@ -535,8 +533,8 @@ function setText(selector,value) { const node=document.querySelector(selector); 
 function applySiteSettings() {
   const settings=SITE_CONTENT?.settings;if(!settings)return;
   if(typeof settings.name==='string'&&settings.name.trim())document.title=document.title.replace(/Overlord/gi,settings.name);
-  document.querySelectorAll('a[href^="https://discord.gg/"]').forEach(a=>{if(settings.discordInvite){CONFIG.inviteUrl=settings.discordInvite;a.href=settings.discordInvite}});
-  document.querySelectorAll('[data-copy-invite]').forEach(a=>a.dataset.invite=settings.discordInvite||CONFIG.inviteUrl);
+  document.querySelectorAll('a[href^="https://discord.gg/"]').forEach(a=>{if(settings.discordInvite){const valid=safeHttpUrl(settings.discordInvite);if(valid){CONFIG.inviteUrl=valid;a.href=valid}}});
+  document.querySelectorAll('[data-copy-invite]').forEach(a=>a.dataset.invite=safeHttpUrl(settings.discordInvite,CONFIG.inviteUrl));
   document.querySelectorAll('.nav-shell .logo,.f-grid .logo').forEach(node=>{const image=node.querySelector('img');node.textContent=settings.name||CONFIG.name;if(image)node.prepend(image)});
   if(settings.footerText){const copy=document.querySelector('.copy');if(copy)copy.textContent=settings.footerText}
   if(settings.serverIp){const node=document.querySelector('[data-server-ip]');if(node)node.textContent=settings.serverIp}
@@ -566,5 +564,6 @@ function init() {
   setTimeout(() => document.getElementById('loader')?.classList.add('done'), 2500); // Failsafe si une ressource externe bloque load.
   addEventListener('pageshow', (event) => { if (event.persisted) { document.getElementById('curtain')?.classList.remove('in'); document.getElementById('loader')?.classList.add('done'); document.documentElement.classList.remove('is-leaving'); } });
 }
+document.documentElement.classList.add('js-pending');setTimeout(()=>document.documentElement.classList.remove('js-pending'),2500);
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, { once: true });
 else init();
