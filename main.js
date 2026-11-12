@@ -383,7 +383,7 @@ function initForm() {
     }
     const underage = Number(values.age) < 16;
     const app = {
-      ...(values.mc ? {mc} : {}), ...(values.age ? {age: field(values.age, 3), underage} : {}),
+      ...(values.mc ? {mc} : {}), ...(values.age ? {age: field(values.age, 3)} : {}),
       ...(values.pvp ? {pvp: field(values.pvp, 20)} : {}), ...(values.raid ? {raid: field(values.raid, 20)} : {}),
       ...(values.experience ? {experience: field(values.experience, 1800)} : {}), ...(values.motivation ? {motivation: field(values.motivation, 1800)} : {}),
       ...(values.availability ? {availability: field(values.availability, 300)} : {}), ...(values.discord ? {discord: field(values.discord, 80)} : {}),
