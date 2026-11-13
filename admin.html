@@ -1,5 +1,88 @@
 <!doctype html>
-<html lang="fr"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://overlord-candidature.anarchique.workers.dev https://discord.com https://api.ashcon.app https://minotar.net https://mc-heads.net; img-src 'self' https: data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self'; object-src 'none'; base-uri 'self'"><meta name="referrer" content="no-referrer"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#090610"><meta name="robots" content="noindex,nofollow"><title>Administration — Overlord</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet"><link rel="icon" href="assets/logo.png" type="image/png"><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="admin.css"><script src="admin.js" defer></script></head>
-<body class="admin-body"><main class="admin-main"><header class="admin-top"><a class="logo" href="index.html"><img src="assets/logo.png" alt="">OVERLORD</a><span class="admin-mark">PANNEAU DE CONTRÔLE // 01</span><button id="logout" class="btn btn-ghost" type="button" hidden>Déconnexion</button></header>
-<section id="loginView" class="admin-login"><div class="admin-sigil">◆</div><p class="eyebrow">Accès réservé</p><h1>Console de gestion</h1><p>Authentifiez-vous pour administrer la faction.</p><form id="loginForm" class="card admin-form"><label>Identifiant<input name="username" autocomplete="username" required value="owner"></label><label>Mot de passe<input name="password" type="password" autocomplete="current-password" required minlength="12"></label><button class="btn btn-discord" type="submit">Entrer dans la console</button><p id="loginStatus" class="admin-status" role="status" aria-live="polite"></p></form><details class="setup-box"><summary>Première configuration</summary><form id="setupForm" class="admin-form"><label>Clé ADMIN_SETUP_KEY<input name="setupKey" type="password" required autocomplete="off"></label><label>Nouveau mot de passe propriétaire<input name="password" type="password" required minlength="12" autocomplete="new-password"></label><button class="btn" type="submit">Créer le compte owner</button><p id="setupStatus" class="admin-status" role="status"></p></form></details></section>
-<section id="dashboard" class="admin-dashboard" hidden><header class="dashboard-heading"><div><p class="eyebrow">Quartier général</p><h1>Console Overlord</h1><p id="welcome"></p></div><div class="dashboard-stamp">KV ONLINE<br><span>SESSION CHIFFRÉE</span></div></header><nav id="adminTabs" class="admin-tabs" aria-label="Sections administration"></nav><div id="notice" class="admin-notice" role="status" aria-live="polite" hidden></div><section id="panel" class="admin-panel" aria-live="polite"></section></section><footer class="admin-footer"><a href="index.html">← Retour au site</a><span>OVERLORD / ADMIN CONTROL</span></footer></main></body></html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://overlord-candidature.anarchique.workers.dev https://discord.com https://api.ashcon.app https://minotar.net https://mc-heads.net; img-src 'self' https: data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self'; object-src 'none'; base-uri 'self'">
+  <meta name="referrer" content="no-referrer">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#090610">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Administration — Overlord</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+  <link rel="icon" href="assets/logo.png" type="image/png">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="admin.css">
+  <script src="admin.js" defer></script>
+</head>
+<body class="admin-body">
+  <a class="skip-link" href="#main-content">Aller au contenu</a>
+  <main id="main-content" class="admin-main">
+    <header class="admin-top">
+      <a class="logo" href="index.html" aria-label="Overlord — retour à l’accueil">
+        <img src="assets/logo.png" alt="" width="36" height="36">
+        <span>OVERLORD</span>
+      </a>
+      <span class="admin-mark">PANNEAU DE CONTRÔLE // 01</span>
+      <button id="logout" class="btn btn-ghost" type="button" hidden>Déconnexion</button>
+    </header>
+
+    <section id="loginView" class="admin-login" aria-labelledby="login-title">
+      <div class="admin-sigil" aria-hidden="true">◆</div>
+      <p class="eyebrow">Accès réservé</p>
+      <h1 id="login-title">Console de gestion</h1>
+      <p>Authentifiez-vous pour administrer la faction.</p>
+      <form id="loginForm" class="card admin-form">
+        <label>Identifiant
+          <input name="username" type="text" autocomplete="username" required minlength="3" maxlength="32">
+        </label>
+        <label>Mot de passe
+          <input name="password" type="password" autocomplete="current-password" required minlength="12" maxlength="128">
+        </label>
+        <button class="btn btn-discord" type="submit">Entrer dans la console</button>
+        <p id="loginStatus" class="admin-status" role="status" aria-live="polite"></p>
+      </form>
+      <details class="setup-box">
+        <summary>Première configuration</summary>
+        <form id="setupForm" class="admin-form">
+          <label>Clé ADMIN_SETUP_KEY
+            <input name="setupKey" type="password" required autocomplete="off">
+          </label>
+          <label>Nouveau mot de passe propriétaire
+            <input name="password" type="password" required minlength="12" maxlength="128" autocomplete="new-password">
+          </label>
+          <button class="btn" type="submit">Créer le compte owner</button>
+          <p id="setupStatus" class="admin-status" role="status" aria-live="polite"></p>
+        </form>
+      </details>
+    </section>
+
+    <section id="dashboard" class="admin-dashboard" aria-labelledby="dashboard-title" hidden>
+      <header class="dashboard-heading">
+        <div>
+          <p class="eyebrow">Quartier général</p>
+          <h1 id="dashboard-title">Console Overlord</h1>
+          <p id="welcome" aria-live="polite"></p>
+        </div>
+        <div class="dashboard-stamp" aria-label="Service KV en ligne, session chiffrée">
+          KV ONLINE<br><span>SESSION CHIFFRÉE</span>
+        </div>
+      </header>
+      <nav id="adminTabs" class="admin-tabs" aria-label="Sections d’administration" role="tablist"></nav>
+      <div id="notice" class="admin-notice" role="status" aria-live="polite" hidden></div>
+      <section id="panel" class="admin-panel" aria-live="polite" aria-label="Contenu de la section sélectionnée">
+        <!-- admin.js construit ici les formulaires et panneaux : statistiques, membres,
+             rangs, accueil, lore, règles, page Rejoindre, candidatures, comptes et
+             permissions des sous-administrateurs, journal et changement de mot de passe. -->
+      </section>
+    </section>
+
+    <footer class="admin-footer">
+      <a href="index.html">← Retour au site</a>
+      <span>OVERLORD / ADMIN CONTROL</span>
+    </footer>
+  </main>
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/vce701823e78c4301a35b7e07294d87301792088814092" integrity="sha512-UKNk8GbxkABxKcXYuLkO16EleLGUkcvJWtpSNmExE0Too3ZaFAxTscNWEc1OdAv5/BikHawapSCaiD2XCmp+Bw==" data-cf-beacon='{"version":"2024.11.0","token":"8607d2a720d14b038279025b2b5a82e5","spa":2}' crossorigin="anonymous"></script>
+</body>
+</html>

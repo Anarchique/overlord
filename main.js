@@ -79,6 +79,7 @@ function initCounters() {
   const animate = (target) => {
     const targetValue = Number(target.dataset.count);
     const suffix = target.dataset.suffix || '';
+    if (!Number.isFinite(targetValue) || targetValue < 0) return;
     if (reduceMotion) { target.textContent = `${targetValue}${suffix}`; return; }
     const start = performance.now();
     const tick = (now) => {
@@ -88,6 +89,8 @@ function initCounters() {
     };
     requestAnimationFrame(tick);
   };
+  const counters = document.querySelectorAll('[data-count]:not([data-discord])');
+  if (!('IntersectionObserver' in window)) { counters.forEach(animate); return; }
   const counterObserver = new IntersectionObserver((entries, observer) => {
     entries.forEach(({ target, isIntersecting }) => {
       if (!isIntersecting) return;
@@ -95,30 +98,7 @@ function initCounters() {
       observer.unobserve(target);
     });
   }, { threshold: 0.5 });
-  document.querySelectorAll('[data-count]:not([data-discord])').forEach((element) => counterObserver.observe(element));
-}
-async function loadDiscordStats() {
-  const members = document.querySelector('[data-discord="members"]');
-  const online = document.querySelector('[data-discord="online"]');
-  if (!members && !online) return;
-  try {
-    const response = await fetch('https://discord.com/api/v10/invites/KHTgbP7aTX?with_counts=true');
-    if (!response.ok) throw new Error(`Discord returned ${response.status}`);
-    const data = await response.json();
-    if (members && data.approximate_member_count !== undefined) {
-      members.textContent = data.approximate_member_count;
-      members.removeAttribute('data-count');
-    }
-    if (online && data.approximate_presence_count !== undefined) {
-      online.textContent = data.approximate_presence_count;
-      online.removeAttribute('data-count');
-    }
-  } catch (error) {
-    console.warn('Échec de récupération des statistiques Discord ; valeurs statiques conservées.', error);
-    document.querySelectorAll('[data-count][data-discord]').forEach((element) => {
-      if (element.dataset.count) animate(element);
-    });
-  }
+  counters.forEach((element) => counterObserver.observe(element));
 }
 
 function initReveal() {
@@ -515,13 +495,13 @@ function renderMembers() {
   }
   grid.replaceChildren();
   members.forEach((member,index)=>{
-    const safeName=String(member.mc||'').slice(0,16),sources=headSources({...member,mc:safeName});
+    const safeName=String(member.mc||'').slice(0,16);if(!/^[A-Za-z0-9_]{3,16}$/.test(safeName))return;const sources=headSources({...member,mc:safeName});
     const article=document.createElement('article');article.className='card member reveal';article.dataset.tilt='';article.dataset.role=String(member.role||'').slice(0,80);
     const link=document.createElement('a');link.className='avatar';link.href=`https://namemc.com/profile/${encodeURIComponent(safeName)}`;link.target='_blank';link.rel='noopener noreferrer';link.title=`Profil NameMC de ${safeName}`;
     const image=document.createElement('img');image.src=safeHttpUrl(member.avatar,sources[0]);image.dataset.sources=JSON.stringify(sources.map(u=>safeHttpUrl(u)).filter(Boolean));image.dataset.index='0';image.width=image.height=104;image.alt=`Tête de ${safeName}`;image.referrerPolicy='no-referrer';link.append(image);
     const indicator=document.createElement('span');indicator.className=`status ${member.status==='on'?'on':'off'}`;indicator.setAttribute('aria-label',member.status==='on'?'En ligne':'Hors ligne');link.append(indicator);
     const heading=document.createElement('h3');heading.textContent=String(member.name||safeName).slice(0,100);const tag=document.createElement('div');tag.className='tagd';tag.textContent=String(member.tag||'').slice(0,100);
-    const badge=document.createElement('span');badge.className='role';badge.textContent=String(member.role||'').slice(0,80);const rank=ranks.find(item=>item.name===member.role);if(/^#[0-9a-fA-F]{6}$/.test(rank?.color||''))badge.style.setProperty('--rank-color',rank.color);
+    const badge=document.createElement('span');badge.className='role';badge.textContent=String(member.role||'').slice(0,80);const rank=ranks.find(item=>item.name===member.role);if(/^#[0-9a-fA-F]{6}$/.test(rank?.color||'')){badge.style.setProperty('--rank-color',rank.color);badge.style.borderColor=rank.color;badge.style.backgroundColor=rank.color;badge.style.color='#fff';}
     article.append(link,heading,tag,badge);grid.append(article);
   });
   grid.querySelectorAll('img[data-sources]').forEach((image, index) => {
@@ -538,7 +518,7 @@ function renderMembers() {
 
 async function loadSiteContent() {
   try {
-    const response = await fetch(`${API_BASE}/api/content`, { headers: { Accept: 'application/json' } });
+    const response = await fetch(`${API_BASE}/api/content`, { headers: { Accept: 'application/json' }, cache: 'no-store' });
     if (!response.ok) return;
     const result = await response.json();
     SITE_CONTENT = result.content || null;
@@ -559,11 +539,20 @@ function applySiteSettings() {
 function applyHomeContent() {
   const data=SITE_CONTENT?.home;if(!data)return;
   const hero=document.querySelector('.hero');if(!hero)return;
-  if(data.eyebrow)setText('.hero .eyebrow',data.eyebrow);if(data.title)setText('.hero h1',data.title);if(data.taglines&&Array.isArray(data.taglines)){const typing=document.getElementById('typing');if(typing)typing.dataset.lines=JSON.stringify(data.taglines)}
+  if(data.eyebrow)setText('.hero .eyebrow',data.eyebrow);if(data.title)setText('.hero h1',data.title);if(Array.isArray(data.taglines)){const typing=document.getElementById('typing');if(typing)typing.dataset.lines=JSON.stringify(data.taglines)}
   if(data.ctaTitle)setText('.cta h2',data.ctaTitle);if(data.ctaText)setText('.cta p',data.ctaText);
-  if(Array.isArray(data.stats))data.stats.slice(0,4).forEach((item,i)=>{const el=document.querySelectorAll('.stat')[i];if(!el)return;const number=el.querySelector('b');const label=el.querySelector('span');if(number){number.dataset.count=String(Number(item.value)||0);number.textContent=number.dataset.count+(item.suffix||'')}if(label)label.textContent=item.label||''});
+  if(Array.isArray(data.stats)){
+    const cards=document.querySelectorAll('.stats .stat');
+    cards.forEach((card,i)=>{
+      const item=data.stats[i],number=card.querySelector('b'),label=card.querySelector('[data-stat-label]');
+      if(!item){card.hidden=true;return} card.hidden=false;
+      if(number){const value=Number(item.value);if(Number.isFinite(value)&&value>=0){number.dataset.count=String(value);number.dataset.suffix=String(item.suffix||'');number.textContent=`${value}${number.dataset.suffix}`}}
+      if(label)label.textContent=String(item.label||'');
+    });
+  }
   if(Array.isArray(data.features))data.features.slice(0,6).forEach((item,i)=>{const card=document.querySelectorAll('#pourquoi .card')[i];if(!card)return;setNodeText(card,'.icon',item.icon||'✦');setNodeText(card,'h3',item.title||'');setNodeText(card,'p',item.text||'')});
 }
+
 function setNodeText(root,selector,value){const node=root.querySelector(selector);if(node)node.textContent=String(value??'')}
 function applyLoreContent(){const entries=SITE_CONTENT?.lore;if(!Array.isArray(entries))return;const timeline=document.querySelector('.timeline');if(!timeline)return;timeline.replaceChildren();const fill=document.createElement('div');fill.className='timeline-fill';fill.setAttribute('aria-hidden','true');timeline.append(fill);entries.forEach(item=>{const wrap=document.createElement('div');wrap.className='tl-item reveal';const date=document.createElement('span');date.className='tl-date';date.textContent=item.date||'';const article=document.createElement('article');article.className='card';const h=document.createElement('h2');h.textContent=item.title||'';const p=document.createElement('p');p.textContent=item.text||'';article.append(h,p);wrap.append(date,article);timeline.append(wrap)});}
 function applyRulesContent(){const categories=SITE_CONTENT?.rules;if(!Array.isArray(categories))return;const root=document.querySelector('.rules');if(!root)return;root.replaceChildren();categories.forEach(category=>{const section=document.createElement('section');section.className='rule-category';if(category.name){const title=document.createElement('h2');title.textContent=category.name;section.append(title)};(category.items||[]).forEach(item=>{const card=document.createElement('article');card.className='card rule reveal';const h=document.createElement('h2');const button=document.createElement('button');button.type='button';button.setAttribute('aria-expanded','false');button.textContent=item.title||'';h.append(button);const body=document.createElement('div');body.className='rule-body';body.hidden=true;const p=document.createElement('p');p.textContent=item.text||'';body.append(p);if(item.sanction){const sanction=document.createElement('span');sanction.className='sanction';sanction.textContent=`Sanction : ${item.sanction}`;p.append(document.createElement('br'),sanction)}card.append(h,body);section.append(card)});root.append(section)});initAccordion()}
@@ -572,11 +561,10 @@ function init() {
   document.documentElement.classList.add('js-enabled');
   injectLayout();
   document.documentElement.classList.remove('js-pending');
-  loadSiteContent().then(() => { renderMembers(); initReveal(); initFilters(); initAccordion(); initTyping(); });
+  loadSiteContent().finally(() => { initCounters(); renderMembers(); initReveal(); initFilters(); initAccordion(); initTyping(); });
   renderMembers();
-  initCounters(); initReveal(); initCursor(); initCards(); initMagnetic(); initNav(); initTransitions();
+  initReveal(); initCursor(); initCards(); initMagnetic(); initNav(); initTransitions();
   initCanvas(); initTyping(); initTimeline(); initFilters(); initAccordion(); initForm(); bindCopy();
-  loadDiscordStats();
   addEventListener('load', () => setTimeout(() => document.getElementById('loader')?.classList.add('done'), reduceMotion ? 0 : 180), { once: true });
   setTimeout(() => document.getElementById('loader')?.classList.add('done'), 2500); // Failsafe si une ressource externe bloque load.
   addEventListener('pageshow', (event) => { if (event.persisted) { document.getElementById('curtain')?.classList.remove('in'); document.getElementById('loader')?.classList.add('done'); document.documentElement.classList.remove('is-leaving'); } });
