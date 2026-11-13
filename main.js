@@ -76,20 +76,22 @@ function bindCopy() {
 }
 
 function initCounters() {
-  const animate = (target) => {
+  const animate = (target, fromCurrent = false) => {
     const targetValue = Number(target.dataset.count);
     const suffix = target.dataset.suffix || '';
     if (!Number.isFinite(targetValue) || targetValue < 0) return;
+    const current = fromCurrent ? (Number.parseInt(target.textContent,10) || 0) : 0;
     if (reduceMotion) { target.textContent = `${targetValue}${suffix}`; return; }
     const start = performance.now();
     const tick = (now) => {
-      const progress = Math.min((now - start) / 1800, 1);
-      target.textContent = `${Math.round(targetValue * (1 - (1 - progress) ** 4))}${suffix}`;
+      const progress = Math.min((now - start) / 900, 1);
+      const eased = 1 - (1 - progress) ** 4;
+      target.textContent = `${Math.round(current + (targetValue-current)*eased)}${suffix}`;
       if (progress < 1) requestAnimationFrame(tick);
     };
     requestAnimationFrame(tick);
   };
-  const counters = document.querySelectorAll('[data-count]:not([data-discord])');
+  const counters = document.querySelectorAll('[data-count]');
   if (!('IntersectionObserver' in window)) { counters.forEach(animate); return; }
   const counterObserver = new IntersectionObserver((entries, observer) => {
     entries.forEach(({ target, isIntersecting }) => {
@@ -523,10 +525,15 @@ async function loadSiteContent() {
     const result = await response.json();
     SITE_CONTENT = result.content || null;
     if (!SITE_CONTENT) return;
-    applySiteSettings(); applyHomeContent(); applyLoreContent(); applyRulesContent(); applyJoinContent();
-  } catch (error) { console.warn('Contenu dynamique indisponible ; contenu local conservé.', error); }
+    applySiteSettings(); applyHomeContent(); applyLoreContent(); applyRulesContent(); applyJoinContent(); await refreshDiscordStats(false);
+  } catch (error) { console.warn('Contenu dynamique indisponible ; contenu local conservé.', error); await refreshDiscordStats(false); }
 }
 function setText(selector,value) { const node=document.querySelector(selector); if(node && value!==undefined)node.textContent=String(value); }
+function normalizeStatLabel(value){return String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('fr').replace(/[^a-z0-9]+/g,' ').trim()}
+function discordStatNodes(){const found={};document.querySelectorAll('.stats .stat').forEach(card=>{const label=normalizeStatLabel(card.querySelector('[data-stat-label]')?.textContent),key=card.dataset.statKey;const target=card.querySelector('b[data-count]');if(key==='members'||label==='membres')found.members=target;if(key==='online'||label==='en ligne'||label==='enligne')found.online=target});return found}
+function applyDiscordStats(stats,animateRefresh=false){const nodes=discordStatNodes();for(const [key,node] of Object.entries(nodes)){const value=Number(stats?.[key]);if(!node||!Number.isFinite(value)||value<0)continue;node.dataset.count=String(value);node.dataset.discordStat=key;if(animateRefresh)animateStatFromCurrent(node);else node.textContent=`${value}${node.dataset.suffix||''}`}}
+function animateStatFromCurrent(node){const target=Number(node.dataset.count),suffix=node.dataset.suffix||'',from=Number.parseInt(node.textContent,10)||0;if(!Number.isFinite(target))return;if(reduceMotion){node.textContent=`${target}${suffix}`;return}const started=performance.now();const step=now=>{const p=Math.min((now-started)/900,1),eased=1-(1-p)**4;node.textContent=`${Math.round(from+(target-from)*eased)}${suffix}`;if(p<1)requestAnimationFrame(step)};requestAnimationFrame(step)}
+async function refreshDiscordStats(animateRefresh=false){try{const response=await fetch(`${API_BASE}/api/discord-stats`,{headers:{Accept:'application/json'},cache:'no-store'});if(!response.ok)return;const result=await response.json();applyDiscordStats(result,animateRefresh)}catch(error){console.warn('Statistiques Discord indisponibles ; valeurs du panneau conservées.',error)}}
 function applySiteSettings() {
   const settings=SITE_CONTENT?.settings;if(!settings)return;
   if(typeof settings.name==='string'&&settings.name.trim())document.title=document.title.replace(/Overlord/gi,settings.name);
@@ -562,6 +569,7 @@ function init() {
   injectLayout();
   document.documentElement.classList.remove('js-pending');
   loadSiteContent().finally(() => { initCounters(); renderMembers(); initReveal(); initFilters(); initAccordion(); initTyping(); });
+  setInterval(() => refreshDiscordStats(true), 60000);
   renderMembers();
   initReveal(); initCursor(); initCards(); initMagnetic(); initNav(); initTransitions();
   initCanvas(); initTyping(); initTimeline(); initFilters(); initAccordion(); initForm(); bindCopy();
