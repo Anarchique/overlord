@@ -435,53 +435,40 @@ const FALLBACK_MEMBERS = [
   { mc: 'NaGaZaKi_0', uuid: 'b4e54ff40c44442084e461f54370df1f', name: 'NaGaZaKi', tag: '@raphael_100807', role: 'Légionnaire Sombre', status: 'on' },
   { mc: 'romsteek', uuid: '48e3c69aaa8647ff98429e533a979753', name: 'romsteek', tag: '@romsteek', role: 'Légionnaire Sombre', status: 'on' },
 ];
-const FALLBACK_HEAD = 'https://minotar.net/helm/MHF_Steve/104.png';
+const FALLBACK_HEAD = 'https://minotar.net/helm/MHF_Steve/128.png';
 function headSources(member) {
-  const encodedName = encodeURIComponent(member.mc.trim());
-  const id = member.uuid || encodedName;
-  return [
-    `https://vzge.me/face/104/${id}.png`,
-    `https://starlightskins.lunareclipse.studio/render/pixel/${id}/face`,
-    `https://api.mineatar.io/face/${id}?scale=13&overlay=true`,
-    `https://crafatar.com/avatars/${member.uuid || encodedName}?size=104&overlay`,
-    `https://minotar.net/helm/${id}/104.png`, FALLBACK_HEAD,
+  const encodedName = encodeURIComponent(String(member.mc || '').trim());
+  const uuid = String(member.uuid || '').replace(/-/g, '');
+  const validUuid = /^[a-f0-9]{32}$/i.test(uuid);
+  const sources = [
+    `https://mc-heads.net/avatar/${encodedName}/128`,
+    `https://minotar.net/helm/${encodedName}/128.png`,
   ];
+  if (validUuid) sources.push(`https://crafatar.com/avatars/${uuid}?size=128&overlay`);
+  // Keep existing providers as alternatives after the requested services.
+  sources.push(
+    `https://vzge.me/face/128/${validUuid ? uuid : encodedName}.png`,
+    `https://api.mineatar.io/face/${validUuid ? uuid : encodedName}?scale=16&overlay=true`,
+    `https://starlightskins.lunareclipse.studio/render/pixel/${validUuid ? uuid : encodedName}/face`,
+    FALLBACK_HEAD,
+  );
+  return sources;
 }
-function loadImage(source) {
-  return new Promise((resolve, reject) => {
-    const image = new Image();
-    image.crossOrigin = 'anonymous';
-    image.onload = () => resolve(image);
-    image.onerror = reject;
-    image.src = source;
-  });
+function memberAvatarSources(member) {
+  const custom = safeHttpUrl(member.avatar);
+  const sources = [...(custom ? [custom] : []), ...headSources(member).map(url => safeHttpUrl(url)).filter(Boolean)];
+  return [...new Set(sources)];
 }
-async function renderSkinFace(image, member) {
-  try {
-    let skin;
-    const id = member.uuid || member.mc.trim();
-    try {
-      const response = await fetch(`https://api.ashcon.app/mojang/v2/user/${encodeURIComponent(id)}`);
-      if (response.ok) {
-        const data = await response.json();
-        if (data?.textures?.skin?.data) skin = await loadImage(`data:image/png;base64,${data.textures.skin.data}`);
-      }
-    } catch { /* Continue with alternate skin services. */ }
-    if (!skin) {
-      for (const source of [`https://minotar.net/skin/${encodeURIComponent(id)}`, `https://mc-heads.net/skin/${encodeURIComponent(id)}`]) {
-        try { skin = await loadImage(source); break; } catch { /* Try the next service. */ }
-      }
-    }
-    if (!skin) return;
-    const canvas = document.createElement('canvas');
-    canvas.width = canvas.height = 104;
-    const context = canvas.getContext('2d');
-    context.imageSmoothingEnabled = false;
-    context.drawImage(skin, 8, 8, 8, 8, 0, 0, 104, 104);
-    context.drawImage(skin, 40, 8, 8, 8, 0, 0, 104, 104);
-    image.onerror = null;
-    image.src = canvas.toDataURL('image/png');
-  } catch { /* Keep the available remote head image. */ }
+function setAvatarSource(image, sources) {
+  image.dataset.sources = JSON.stringify(sources);
+  image.dataset.index = '0';
+  image.onerror = () => {
+    const next = Number(image.dataset.index) + 1;
+    if (next >= sources.length) { image.onerror = null; return; }
+    image.dataset.index = String(next);
+    image.src = sources[next];
+  };
+  image.src = sources[0];
 }
 function renderMembers() {
   const grid = document.getElementById('grid');
@@ -497,24 +484,14 @@ function renderMembers() {
   }
   grid.replaceChildren();
   members.forEach((member,index)=>{
-    const safeName=String(member.mc||'').slice(0,16);if(!/^[A-Za-z0-9_]{3,16}$/.test(safeName))return;const sources=headSources({...member,mc:safeName});
+    const safeName=String(member.mc||'').slice(0,16);if(!/^[A-Za-z0-9_]{3,16}$/.test(safeName))return;const sources=memberAvatarSources({...member,mc:safeName});
     const article=document.createElement('article');article.className='card member reveal';article.dataset.tilt='';article.dataset.role=String(member.role||'').slice(0,80);
     const link=document.createElement('a');link.className='avatar';link.href=`https://namemc.com/profile/${encodeURIComponent(safeName)}`;link.target='_blank';link.rel='noopener noreferrer';link.title=`Profil NameMC de ${safeName}`;
-    const image=document.createElement('img');image.src=safeHttpUrl(member.avatar,sources[0]);image.dataset.sources=JSON.stringify(sources.map(u=>safeHttpUrl(u)).filter(Boolean));image.dataset.index='0';image.width=image.height=104;image.alt=`Tête de ${safeName}`;image.referrerPolicy='no-referrer';link.append(image);
+    const image=document.createElement('img');image.width=image.height=104;image.alt=`Tête de ${safeName}`;image.referrerPolicy='no-referrer';image.loading='lazy';image.decoding='async';image.style.imageRendering='pixelated';setAvatarSource(image,sources);link.append(image);
     const indicator=document.createElement('span');indicator.className=`status ${member.status==='on'?'on':'off'}`;indicator.setAttribute('aria-label',member.status==='on'?'En ligne':'Hors ligne');link.append(indicator);
     const heading=document.createElement('h3');heading.textContent=String(member.name||safeName).slice(0,100);const tag=document.createElement('div');tag.className='tagd';tag.textContent=String(member.tag||'').slice(0,100);
     const badge=document.createElement('span');badge.className='role';badge.textContent=String(member.role||'').slice(0,80);const rank=ranks.find(item=>item.name===member.role);if(/^#[0-9a-fA-F]{6}$/.test(rank?.color||'')){badge.style.setProperty('--rank-color',rank.color);badge.style.borderColor=rank.color;badge.style.backgroundColor=rank.color;badge.style.color='#fff';}
     article.append(link,heading,tag,badge);grid.append(article);
-  });
-  grid.querySelectorAll('img[data-sources]').forEach((image, index) => {
-    if (members[index]?.avatar) image.dataset.customAvatar = 'true';
-    if (!image.dataset.customAvatar) renderSkinFace(image, members[index]);
-    image.addEventListener('error', () => {
-      const sources = JSON.parse(image.dataset.sources).filter(u=>safeHttpUrl(u));
-      const index = Number(image.dataset.index) + 1;
-      if (index >= sources.length) { image.onerror = null; return; }
-      image.dataset.index = String(index); image.src = safeHttpUrl(sources[index]);
-    });
   });
 }
 
